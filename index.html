@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FP2級 勉強部屋</title>
+<style>
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f4f7fb;color:#172033}
+header{background:#17365d;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:24px} button,.btn{border:0;border-radius:8px;padding:10px 14px;cursor:pointer;background:#2563eb;color:white;font-weight:700}
+nav{display:flex;gap:8px;flex-wrap:wrap;padding:14px 20px;background:white;border-bottom:1px solid #ddd}
+nav button{background:#e8eef7;color:#17365d}nav button.active{background:#17365d;color:white}
+main{max-width:1100px;margin:20px auto;padding:0 16px}.card{background:white;border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 2px 10px #0001}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.stat{padding:18px;background:#f0f5fb;border-radius:10px}.big{font-size:28px;font-weight:800}
+input,select{padding:11px;border:1px solid #cbd5e1;border-radius:8px;width:100%;box-sizing:border-box}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.choices{display:grid;gap:10px;margin-top:18px}.choice{text-align:left;background:#f7f9fc;color:#172033;border:1px solid #ccd5e2}.choice:hover{background:#eaf1ff}.correct{background:#dcfce7!important;border-color:#16a34a!important}.wrong{background:#fee2e2!important;border-color:#dc2626!important}
+.muted{color:#64748b}.hidden{display:none}.result{padding:12px;border-radius:8px;margin-top:12px}.tag{display:inline-block;background:#e8eef7;border-radius:99px;padding:4px 9px;margin:3px;font-size:12px}
+footer{color:#64748b;text-align:center;padding:30px}
+</style>
+</head>
+<body>
+<header><h1>📘 FP2級 勉強部屋</h1><button onclick="downloadHTML()">⬇️ HTMLを保存</button></header>
+<nav id="nav"></nav>
+<main id="app"></main>
+<footer>学習記録はこのブラウザのlocalStorageに保存されます。</footer>
+<script>
+const OFFICIAL="https://fair.jafp.or.jp/exam/mohan/";
+const subjects=["ライフプランニングと資金計画","リスク管理","金融資産運用","タックスプランニング","不動産","相続・事業承継"];
+let questions=[
+{id:"demo1",year:"2026",type:"学科",subject:"金融資産運用",q:"NISA（少額投資非課税制度）に関する次の記述のうち、正しいものはどれか。",a:["NISA口座の対象商品はすべての金融商品である。","NISAでは一定の投資について運用益が非課税となる。","NISAは法人だけが利用できる。","NISAの非課税制度は相続税の制度である。"],ans:1,ex:"NISAは個人の資産形成を支援する税制優遇制度で、一定の投資について運用益が非課税となります。実際の制度内容は最新の公式情報を確認してください。",tags:["NISA","非課税"]},
+{id:"demo2",year:"2025",type:"学科",subject:"相続・事業承継",q:"相続に関する学習として、最も適切な確認方法はどれか。",a:["最新の法令・制度を確認する","古い問題だけを暗記する","年度を確認しない","解説を読まない"],ans:0,ex:"FP試験では法令・税制等の基準日に注意が必要です。過去問は知識の確認に使い、現行制度は公式情報で確認しましょう。",tags:["相続","法令基準日"]},
+{id:"demo3",year:"2026",type:"学科",subject:"タックスプランニング",q:"所得税の学習で、まず区別して理解したいものはどれか。",a:["所得控除と税額控除","銀行と証券","土地と建物だけ","年齢と住所だけ"],ans:0,ex:"所得控除は課税所得を計算する段階、税額控除は算出税額から控除する段階に関係します。",tags:["所得控除","税額控除"]}
+];
+let state=JSON.parse(localStorage.fp2state||'{"correct":0,"wrong":0,"answered":0,"wrongIds":[],"favorites":[],"history":[]}');
+let current=null, filtered=[];
+function save(){localStorage.fp2state=JSON.stringify(state)}
+function nav(){document.getElementById("nav").innerHTML=["ホーム","ドリル","過去問検索","弱点帳","学習記録","データ管理"].map(x=>`<button onclick="show('${x}')">${x}</button>`).join("")}
+function show(page){nav();let a=document.getElementById("app"); if(page==="ホーム")home(a);if(page==="ドリル")drill(a);if(page==="過去問検索")search(a);if(page==="弱点帳")weak(a);if(page==="学習記録")stats(a);if(page==="データ管理")data(a)}
+function home(a){a.innerHTML=`<div class="card"><h2>今日の勉強</h2><div class="grid"><div class="stat">回答数<div class="big">${state.answered}</div></div><div class="stat">正解<div class="big">${state.correct}</div></div><div class="stat">正答率<div class="big">${rate()}%</div></div><div class="stat">苦手<div class="big">${state.wrongIds.length}</div></div></div></div><div class="card"><h2>過去問を探す</h2><p>現在はデモ問題を搭載しています。公式の最新2年分は下のボタンから確認できます。</p><button onclick="window.open(OFFICIAL,'_blank')">日本FP協会 公式過去問ページ</button></div><div class="card"><h2>すぐ勉強する</h2><div class="row"><button onclick="startRandom()">ランダム10問</button><button onclick="show('過去問検索')">過去問検索</button><button onclick="show('弱点帳')">間違えた問題</button></div></div>`}
+function rate(){return state.answered?Math.round(state.correct/state.answered*100):0}
+function drill(a){a.innerHTML=`<div class="card"><h2>📝 ドリル</h2><div id="qbox"></div></div>`;nextQuestion()}
+function nextQuestion(list=questions){if(!list.length){document.getElementById("qbox").innerHTML="<p>該当する問題がありません。</p>";return}current=list[Math.floor(Math.random()*list.length)];renderQ()}
+function renderQ(){let b=document.getElementById("qbox");b.innerHTML=`<div class="muted">${current.year}年 / ${current.type} / ${current.subject}</div><h3>${current.q}</h3><div class="choices">${current.a.map((x,i)=>`<button class="choice" onclick="answer(${i},this)">${String.fromCharCode(65+i)}. ${x}</button>`).join("")}</div><div id="feedback"></div>`}
+function answer(i,el){if(document.querySelector("#feedback").innerHTML)return;let ok=i===current.ans;state.answered++;ok?state.correct++:state.wrong++;if(!ok&&!state.wrongIds.includes(current.id))state.wrongIds.push(current.id);state.history.push({id:current.id,ok,date:new Date().toISOString()});save();document.querySelectorAll(".choice")[current.ans].classList.add("correct");if(!ok)el.classList.add("wrong");document.getElementById("feedback").innerHTML=`<div class="result ${ok?'correct':'wrong'}"><b>${ok?'✅ 正解':'❌ 不正解'}</b><br>${current.ex}</div><br><button onclick="nextQuestion()">次の問題 →</button>`}
+function startRandom(){show("ドリル")}
+function search(a){a.innerHTML=`<div class="card"><h2>🔎 過去問検索</h2><div class="row"><input id="kw" placeholder="問題文・選択肢・解説・キーワードを検索"><select id="sub"><option value="">全分野</option>${subjects.map(s=>`<option>${s}</option>`).join("")}</select><select id="yr"><option value="">全年度</option><option>2026</option><option>2025</option></select><button onclick="doSearch()">検索</button></div><p class="muted">※公式サイトからの自動取得は、ブラウザの外部サイト制限等があるため、この単独HTMLでは公式ページを開く方式にしています。</p></div><div id="results"></div>`;doSearch()}
+function doSearch(){let k=(document.getElementById("kw").value||"").toLowerCase(),s=document.getElementById("sub").value,y=document.getElementById("yr").value;filtered=questions.filter(q=>(!k||JSON.stringify(q).toLowerCase().includes(k))&&(!s||q.subject===s)&&(!y||q.year===y));document.getElementById("results").innerHTML=`<div class="card"><b>${filtered.length}件</b>${filtered.map(q=>`<div class="card"><span class="tag">${q.year}</span><span class="tag">${q.subject}</span><h3>${q.q}</h3><button onclick="openQ('${q.id}')">問題を見る</button></div>`).join("")}</div>`}
+function openQ(id){current=questions.find(q=>q.id===id);show("ドリル");renderQ()}
+function weak(a){let qs=questions.filter(q=>state.wrongIds.includes(q.id));a.innerHTML=`<div class="card"><h2>⭐ 弱点帳</h2><p>${qs.length}問</p>${qs.map(q=>`<div class="card"><b>${q.subject}</b><p>${q.q}</p><button onclick="openQ('${q.id}')">解き直す</button></div>`).join("")||"<p>まだ間違えた問題はありません。</p>"}`}
+function stats(a){a.innerHTML=`<div class="card"><h2>📊 学習記録</h2><div class="grid"><div class="stat">回答数<div class="big">${state.answered}</div></div><div class="stat">正解<div class="big">${state.correct}</div></div><div class="stat">不正解<div class="big">${state.wrong}</div></div><div class="stat">正答率<div class="big">${rate()}%</div></div></div></div>`}
+function data(a){a.innerHTML=`<div class="card"><h2>💾 データ管理</h2><p>学習記録や追加した問題データをJSONとして保存できます。</p><div class="row"><button onclick="downloadData()">学習データを保存</button><label class="btn">JSONを読み込む<input type="file" accept=".json" hidden onchange="loadData(event)"></label><button onclick="resetData()">学習記録をリセット</button></div></div><div class="card"><h2>📚 公式資料</h2><p>日本FP協会の試験問題・模範解答ページ</p><button onclick="window.open(OFFICIAL,'_blank')">公式ページを開く</button></div>`}
+function downloadData(){download("fp2-learning.json",JSON.stringify(state,null,2),"application/json")}
+function loadData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{state=JSON.parse(r.result);save();show("学習記録")}catch{alert("JSONを読み込めませんでした")}};r.readAsText(f)}
+function resetData(){if(confirm("学習記録をリセットしますか？")){state={correct:0,wrong:0,answered:0,wrongIds:[],favorites:[],history:[]};save();show("ホーム")}}
+function download(name,text,type){let b=new Blob([text],{type}),u=URL.createObjectURL(b),x=document.createElement("a");x.href=u;x.download=name;x.click();URL.revokeObjectURL(u)}
+function downloadHTML(){download("FP2級_勉強部屋.html","<!doctype html>\\n"+document.documentElement.outerHTML,"text/html")}
+nav();show("ホーム");
+</script>
+</body></html>
